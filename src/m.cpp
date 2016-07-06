@@ -139,6 +139,7 @@ namespace NX
   {
     if ( NULL != ctx->fh)
       {
+	fflush(ctx->fh);
 	fclose (ctx->fh);
 	ctx->fh = NULL;
       }

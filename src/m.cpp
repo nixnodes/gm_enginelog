@@ -151,22 +151,25 @@ namespace NX
 
     size_t w = fwrite ((const void *) msg, msglen, 1, ctx->fh);
 
-    if (w == 1)
+    if (w != 1)
       {
-	return;
-      }
 
-    if (ferror (ctx->fh))
-      {
-	printf ("ENGINELOG: [%d] write error occured\n", fileno (ctx->fh));
-	return;
-      }
+	if (ferror (ctx->fh))
+	  {
+	    printf ("ENGINELOG: [%d] write error occured\n", fileno (ctx->fh));
+	    return;
+	  }
 
-    if (feof (ctx->fh))
+	if (feof (ctx->fh))
+	  {
+	    printf ("ENGINELOG: [%d]: Warning, EOF occured on log [%zu]\n",
+		    fileno (ctx->fh), w);
+	    return;
+	  }
+      }
+    else
       {
-	printf ("ENGINELOG: [%d]: Warning, EOF occured on log [%zu]\n",
-		fileno (ctx->fh), w);
-	return;
+	fflush (ctx->fh);
       }
 
   }
@@ -329,7 +332,6 @@ namespace NX
     md_init (&msq.queue);
     msq.queue.flags |= F_MDA_REFPTR;
 
-
     int r;
 
     if ((r = pthread_create (&dump_thread, NULL, LoggerDumpThread, &lcontext)))
@@ -348,7 +350,6 @@ namespace NX
     ADDFUNC("EnableLogging", Engine::EnableLogging)
     ADDFUNC("GetFileName", Engine::GetFileName)
     LUA->Pop ();
-
 
     return 0;
   }

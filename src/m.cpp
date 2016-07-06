@@ -329,6 +329,7 @@ namespace NX
     md_init (&msq.queue);
     msq.queue.flags |= F_MDA_REFPTR;
 
+
     int r;
 
     if ((r = pthread_create (&dump_thread, NULL, LoggerDumpThread, &lcontext)))
@@ -347,8 +348,6 @@ namespace NX
     ADDFUNC("EnableLogging", Engine::EnableLogging)
     ADDFUNC("GetFileName", Engine::GetFileName)
     LUA->Pop ();
-
-    _EnableLogging (state);
 
     return 0;
   }

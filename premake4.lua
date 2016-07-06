@@ -19,7 +19,7 @@ solution "gmsv_enginelog"
 	
 	project "gmsv_enginelog"
 		defines { "GMMODULE" } 
---		links { "rt", "crypto" }
+		links { "pthread" }
 		files { "src/**.*", "../include/**.*" }
 		kind "SharedLib"
 		

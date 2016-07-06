@@ -29,9 +29,7 @@ namespace NX
   mqueue msq;
   FILE *cl;
   lctx lcontext;
-
-  pthread_mutex_t global_mutex;
-  bool GlobalShutdown = false;
+  gctx gcontext;
 
   char ftag[128] = "enginelog";
 
@@ -103,6 +101,7 @@ namespace NX
   static lctx
   CreateNewLogInstance ()
   {
+
     lctx ctx;
 
     ctx.fh = NULL;
@@ -121,7 +120,6 @@ namespace NX
 	    fprintf (stderr,
 		     "ENGINELOG: failed to create base path [%s]: '%s'\n",
 		     errno_str, b);
-	    pthread_mutex_unlock (&global_mutex);
 	    return ctx;
 	  }
       }
@@ -130,6 +128,7 @@ namespace NX
 	      (unsigned int) time (NULL));
 
     ctx.fh = fopen (ctx.path, "a");
+    lcontext.last_nl = 1;
 
     return ctx;
   }
@@ -137,50 +136,85 @@ namespace NX
   static void
   CloseLogInstance (lctx *ctx)
   {
+
     if ( NULL != ctx->fh)
       {
-	fflush(ctx->fh);
+	fflush (ctx->fh);
 	fclose (ctx->fh);
 	ctx->fh = NULL;
       }
   }
 
-  static void
-  DumpToDrive (lctx *ctx, const char *msg)
+  static int
+  Write (lctx *ctx, const char *msg, size_t msglen)
   {
-    size_t msglen = strlen (msg);
-
     size_t w = fwrite ((const void *) msg, msglen, 1, ctx->fh);
 
     if (w != 1)
       {
-
 	if (ferror (ctx->fh))
 	  {
 	    printf ("ENGINELOG: [%d] write error occured\n", fileno (ctx->fh));
-	    return;
+	    return 1;
 	  }
 
 	if (feof (ctx->fh))
 	  {
 	    printf ("ENGINELOG: [%d]: Warning, EOF occured on log [%zu]\n",
 		    fileno (ctx->fh), w);
-	    return;
+	    return 1;
 	  }
       }
     else
       {
-	fflush (ctx->fh);
+	return 0;
       }
+
+    return 2;
+  }
+
+  static void
+  DumpToDrive (lctx *ctx, const char *msg)
+  {
+    if (ctx->last_nl)
+      {
+	ctx->last_nl = 0;
+
+	char tb[255];
+	time_t t_t = (time_t) time (NULL);
+
+	pthread_mutex_lock (&gcontext.global_mutex);
+	strftime (tb, sizeof(tb), gcontext.tfmt_string, localtime (&t_t));
+	pthread_mutex_unlock (&gcontext.global_mutex);
+
+	if (Write (ctx, tb, strlen (tb)))
+	  {
+	    return;
+	  }
+      }
+
+    if (strrchr (msg, 0xA))
+      {
+	ctx->last_nl = 1;
+      }
+
+    size_t msglen = strlen (msg);
+
+    if (Write (ctx, msg, msglen))
+      {
+	return;
+      }
+
+    fflush (ctx->fh);
 
   }
 
   static bool
   IsShuttingDown ()
   {
-    pthread_mutex_lock (&global_mutex);
-    bool res = GlobalShutdown;
-    pthread_mutex_unlock (&global_mutex);
+    pthread_mutex_lock (&gcontext.global_mutex);
+    bool res = gcontext.GlobalShutdown;
+    pthread_mutex_unlock (&gcontext.global_mutex);
 
     return res;
   }
@@ -243,7 +277,7 @@ namespace NX
   }
 
   static int
-  InitializeGlobalContext ()
+  InitializeLogContext ()
   {
     lcontext = CreateNewLogInstance ();
 
@@ -303,8 +337,23 @@ namespace NX
   }
 
   int
-  Engine::SetFileNamePrefix (lua_State* state)
+  Engine::SetTimeFormat (lua_State* state)
   {
+    if (!LUA->IsType (1, Type::STRING))
+      {
+	return 0;
+      }
+
+    const char *format = LUA->GetString (1);
+
+    if (!strlen (format))
+      {
+	return 0;
+      }
+
+    pthread_mutex_lock (&gcontext.global_mutex);
+    snprintf (gcontext.tfmt_string, sizeof(gcontext.tfmt_string), "[ %s ] ", format);
+    pthread_mutex_unlock (&gcontext.global_mutex);
 
     return 0;
   }
@@ -320,12 +369,15 @@ namespace NX
   Engine::Initialize (lua_State* state)
   {
 
-    if (InitializeGlobalContext ())
+    if (InitializeLogContext ())
       {
 	return 0;
       }
 
-    mutex_init (&global_mutex, PTHREAD_MUTEX_RECURSIVE, PTHREAD_MUTEX_ROBUST);
+    strcpy (gcontext.tfmt_string, "[ %F %T ] ");
+
+    mutex_init (&gcontext.global_mutex, PTHREAD_MUTEX_RECURSIVE,
+		PTHREAD_MUTEX_ROBUST);
     mutex_init (&msq.mutex, PTHREAD_MUTEX_RECURSIVE, PTHREAD_MUTEX_ROBUST);
 
     signal (SIGUSR1, sig_dummy_handler);
@@ -350,6 +402,7 @@ namespace NX
     LUA->GetField (-1, "ELog");
     ADDFUNC("EnableLogging", Engine::EnableLogging)
     ADDFUNC("GetFileName", Engine::GetFileName)
+    ADDFUNC("GetFileName", Engine::SetTimeFormat)
     LUA->Pop ();
 
     return 0;
@@ -360,9 +413,9 @@ namespace NX
   {
     DisableLogging (state);
 
-    pthread_mutex_lock (&global_mutex);
-    GlobalShutdown = 1;
-    pthread_mutex_unlock (&global_mutex);
+    pthread_mutex_lock (&gcontext.global_mutex);
+    gcontext.GlobalShutdown = 1;
+    pthread_mutex_unlock (&gcontext.global_mutex);
 
     pthread_kill (dump_thread, SIGUSR1);
     pthread_join (dump_thread, NULL);

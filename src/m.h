@@ -35,7 +35,15 @@ typedef struct log_context
   char base_path[PATH_MAX];
   char path[PATH_MAX];
   FILE *fh;
+  char last_nl;
 } lctx, *plctx;
+
+typedef struct global_context
+{
+  pthread_mutex_t global_mutex;
+  bool GlobalShutdown;
+  char tfmt_string[255];
+} gctx;
 
 #define STRERR() char errno_str[1024]; strerror_r(errno, errno_str, sizeof(b));
 
@@ -54,8 +62,9 @@ namespace NX
     static int
     EnableLogging (lua_State* state);
     static int
-    SetFileNamePrefix (lua_State* state);
-    static int GetFileName (lua_State* state);
+    SetTimeFormat (lua_State* state);
+    static int
+    GetFileName (lua_State* state);
   };
 }
 

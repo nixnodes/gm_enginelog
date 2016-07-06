@@ -9,7 +9,7 @@
 
 #define MSG_QUEUE_MAX 25000
 
-#define MAX_LOG_FILE_SIZE (1024 * 1024) * 100
+#define MAX_LOG_FILE_SIZE (1024 * 1024) * 5
 
 #define DEBUGPRINT(msg) LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB); LUA->GetField(-1, "print"); LUA->PushString(msg); LUA->Call(1, 0); LUA->Pop();
 #define ADDFUNC(fn, f) LUA->PushCFunction(f); LUA->SetField(-2, fn);

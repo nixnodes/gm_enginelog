@@ -349,6 +349,7 @@ namespace NX
     ADDFUNC("GetFileName", Engine::GetFileName)
     LUA->Pop ();
 
+
     return 0;
   }
 

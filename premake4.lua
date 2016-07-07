@@ -15,7 +15,7 @@ solution "gmsv_enginelog"
 	
 	configuration "Release"
 		defines { "NDEBUG" }
-		flags{ "OptimizeSpeed", "FloatStrict", "ExtraWarnings" }
+		flags{ "OptimizeSpeed" }
 	
 	project "gmsv_enginelog"
 		defines { "GMMODULE" } 

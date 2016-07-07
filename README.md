@@ -6,10 +6,12 @@
 
 By default, logging is disabled, use:
 
-  `ELog.EnableLogging(true)`
+`ELog.EnableLogging(true)`
   
 Enginespew must be loaded for this to work.
 
 -
+Captured spew is written to :
 
-Captured spew is written to <srcds_linux base>/logs/enginelog.<timestamp>.log (5MB max file size)
+	<srcds_path>/logs/enginelog.<timestamp>.log
+	

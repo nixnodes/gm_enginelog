@@ -423,7 +423,7 @@ namespace NX
     LUA->GetField (-1, "ELog");
     ADDFUNC("EnableLogging", Engine::EnableLogging)
     ADDFUNC("GetFileName", Engine::GetFileName)
-    ADDFUNC("GetFileName", Engine::SetTimeFormat)
+    ADDFUNC("SetTimeFormat", Engine::SetTimeFormat)
     LUA->Pop ();
 
     return 0;

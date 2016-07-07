@@ -107,6 +107,30 @@ dir_exists (char *dir)
 }
 
 int
+file_exists (char *dir)
+{
+  int r = get_file_type (dir);
+
+  if (r == DT_REG)
+    {
+      return 0;
+    }
+  return 1;
+}
+
+int
+symlink_exists (char *dir)
+{
+  int r = get_file_type (dir);
+
+  if (r == DT_LNK)
+    {
+      return 0;
+    }
+  return 1;
+}
+
+int
 get_file_type (char *file)
 {
   struct stat sb;

@@ -128,6 +128,26 @@ namespace NX
 	      (unsigned int) time (NULL));
 
     ctx.fh = fopen (ctx.path, "a");
+
+    if ( NULL != ctx.fh)
+      {
+	char l[PATH_MAX];
+	snprintf (l, sizeof(l), "%s/engine.log", b);
+
+	if (symlink_exists (l))
+	  {
+	    unlink (l);
+	  }
+
+	if (symlink (ctx.path, l) == -1)
+	  {
+	    STRERR()
+	    fprintf (stderr,
+		     "ENGINELOG: failed to create symlink [%s]: '%s' -> '%s'\n",
+		     errno_str, ctx.path, l);
+	  }
+      }
+
     lcontext.last_nl = 1;
 
     return ctx;
@@ -231,7 +251,7 @@ namespace NX
       {
 	if (GetQueueCount (&msq) > 0)
 	  {
-	    usleep (10000);
+	    usleep (1000);
 	  }
 	else
 	  {
@@ -352,7 +372,8 @@ namespace NX
       }
 
     pthread_mutex_lock (&gcontext.global_mutex);
-    snprintf (gcontext.tfmt_string, sizeof(gcontext.tfmt_string), "[ %s ] ", format);
+    snprintf (gcontext.tfmt_string, sizeof(gcontext.tfmt_string), "[ %s ] ",
+	      format);
     pthread_mutex_unlock (&gcontext.global_mutex);
 
     return 0;

@@ -16,5 +16,9 @@ int
 get_file_type (char *file);
 int
 dir_exists (char *dir);
+int
+file_exists (char *dir);
+int
+symlink_exists (char *dir);
 
 #endif /* SRC_IO_H_ */

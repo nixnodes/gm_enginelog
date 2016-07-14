@@ -14,6 +14,8 @@
 #define DEBUGPRINT(msg) LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB); LUA->GetField(-1, "print"); LUA->PushString(msg); LUA->Call(1, 0); LUA->Pop();
 #define ADDFUNC(fn, f) LUA->PushCFunction(f); LUA->SetField(-2, fn);
 
+#define LOCK(d,f)     pthread_mutex_lock (d); f; pthread_mutex_unlock (d);
+
 #include <pthread.h>
 
 typedef struct _msg_queue_chunk
@@ -36,6 +38,7 @@ typedef struct log_context
   char path[PATH_MAX];
   FILE *fh;
   char last_nl;
+  int inst;
 } lctx, *plctx;
 
 typedef struct global_context

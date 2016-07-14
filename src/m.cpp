@@ -77,7 +77,6 @@ namespace NX
       }
 
     memcpy (ptr, (const void *) msg, l);
-
     md_alloc (&queue->queue, 0, 0, ptr);
 
     pthread_mutex_unlock (&queue->mutex);
@@ -89,22 +88,18 @@ namespace NX
   static size_t
   GetQueueCount (pmqueue queue)
   {
-    pthread_mutex_lock (&queue->mutex);
-
-    size_t res = queue->queue.offset;
-
-    pthread_mutex_unlock (&queue->mutex);
-
+    LOCK(&queue->mutex, size_t res = queue->queue.offset)
     return res;
   }
 
   static lctx
-  CreateNewLogInstance ()
+  CreateNewLogInstance (int inst)
   {
 
     lctx ctx;
 
     ctx.fh = NULL;
+    ctx.inst = inst;
 
     self_get_path ("srcds_linux", (char*) ctx.base_path);
     g_dirname (ctx.base_path);
@@ -124,8 +119,19 @@ namespace NX
 	  }
       }
 
-    snprintf (ctx.path, sizeof(ctx.path), "%s/%s.%u.log", b, ftag,
-	      (unsigned int) time (NULL));
+    char tb[255];
+    time_t t_t = (time_t) time (NULL);
+    strftime (tb, sizeof(tb), "%d-%m-%y", localtime (&t_t));
+
+    if (inst > 0)
+      {
+	snprintf (ctx.path, sizeof(ctx.path), "%s/%s.%s-%d.log", b, ftag, tb,
+		  inst);
+      }
+    else
+      {
+	snprintf (ctx.path, sizeof(ctx.path), "%s/%s.%s.log", b, ftag, tb);
+      }
 
     ctx.fh = fopen (ctx.path, "a");
 
@@ -203,9 +209,8 @@ namespace NX
 	char tb[255];
 	time_t t_t = (time_t) time (NULL);
 
-	pthread_mutex_lock (&gcontext.global_mutex);
-	strftime (tb, sizeof(tb), gcontext.tfmt_string, localtime (&t_t));
-	pthread_mutex_unlock (&gcontext.global_mutex);
+	LOCK(&gcontext.global_mutex,
+	     strftime (tb, sizeof(tb), gcontext.tfmt_string, localtime (&t_t)))
 
 	if (Write (ctx, tb, strlen (tb)))
 	  {
@@ -232,10 +237,7 @@ namespace NX
   static bool
   IsShuttingDown ()
   {
-    pthread_mutex_lock (&gcontext.global_mutex);
-    bool res = gcontext.GlobalShutdown;
-    pthread_mutex_unlock (&gcontext.global_mutex);
-
+    LOCK(&gcontext.global_mutex, bool res = gcontext.GlobalShutdown)
     return res;
   }
 
@@ -262,8 +264,10 @@ namespace NX
 	  {
 	    if (ftell (ctx->fh) > MAX_LOG_FILE_SIZE || ferror (ctx->fh))
 	      {
+		int cinst = ctx->inst;
 		CloseLogInstance (ctx);
-		*ctx = CreateNewLogInstance ();
+		*ctx = CreateNewLogInstance (cinst + 1);
+
 		CONTNULL()
 	      }
 
@@ -299,7 +303,7 @@ namespace NX
   static int
   InitializeLogContext ()
   {
-    lcontext = CreateNewLogInstance ();
+    lcontext = CreateNewLogInstance (0);
 
     if ( NULL == lcontext.fh)
       {
@@ -371,10 +375,10 @@ namespace NX
 	return 0;
       }
 
-    pthread_mutex_lock (&gcontext.global_mutex);
-    snprintf (gcontext.tfmt_string, sizeof(gcontext.tfmt_string), "[ %s ] ",
-	      format);
-    pthread_mutex_unlock (&gcontext.global_mutex);
+    LOCK(
+	&gcontext.global_mutex,
+	snprintf (gcontext.tfmt_string, sizeof(gcontext.tfmt_string), "[ %s ] ",
+		  format))
 
     return 0;
   }
@@ -434,9 +438,7 @@ namespace NX
   {
     DisableLogging (state);
 
-    pthread_mutex_lock (&gcontext.global_mutex);
-    gcontext.GlobalShutdown = 1;
-    pthread_mutex_unlock (&gcontext.global_mutex);
+    LOCK(&gcontext.global_mutex, gcontext.GlobalShutdown = 1)
 
     pthread_kill (dump_thread, SIGUSR1);
     pthread_join (dump_thread, NULL);
